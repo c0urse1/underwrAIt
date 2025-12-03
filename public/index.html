@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskAssist - Medizinische Risikoprüfung</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Case Info -->
+        <div class="header">
+            <div class="case-info">
+                <div class="case-number">Fall UW-2024-00042</div>
+                <div class="case-meta">
+                    <span class="timestamp">Analysiert: 12.11.2024, 14:32 Uhr</span>
+                </div>
+                <div class="patient-info">
+                    Kunde: M, 36 J. • Softwareentwickler • 185 cm, 72 kg (BMI 21) • Nichtraucher
+                </div>
+                <div class="status-indicators">
+                    <span class="status-indicator status-green"></span>
+                    <span class="status-indicator status-blue"></span>
+                    <span class="status-indicator status-orange"></span>
+                </div>
+            </div>
+            <button class="btn-primary btn-submit" id="submitBtn">Vorgang erstellen</button>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container" id="chatContainer">
+            <!-- Initial message from RiskAssist -->
+            <div class="message assistant-message">
+                <div class="message-content">
+                    <strong>Hallo!</strong> Ich bin RiskAssist, Ihr KI-gestützter Assistent für die medizinische Risikoprüfung. Bitte teilen Sie mir den Gesundheitszustand Ihres Kunden mit – als Text oder Upload medizinischer Dokumente (PDF/DOCX/Labore). Ich strukturiere Diagnosen, Medikation und Laborwerte und erstelle eine übersichtliche Fall-Zusammenfassung.
+                </div>
+                <div class="message-time">08:14</div>
+            </div>
+
+            <!-- User message placeholder -->
+            <div class="message user-message" id="initialUserMessage" style="display:none;">
+                <div class="message-content">
+                    Neuer Kunde: männlich, 36 J., Beruf: Außendienst (viel unterwegs). Größe 185 cm, Gewicht 72 kg (BMI = 21). Nichtraucher. Bitte vollständige Risikoprüfung starten.
+                </div>
+                <div class="message-time">09:15</div>
+            </div>
+
+            <!-- Document upload section -->
+            <div class="document-section" id="documentSection" style="display:none;">
+                <div class="document-header">📎 1 Dokumente hochgeladen</div>
+                <div class="document-list" id="documentList">
+                    <!-- Documents will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Assistant response -->
+            <div class="message assistant-message" id="acceptanceMessage" style="display:none;">
+                <div class="message-content">
+                    Danke! Ich akzeptiere PDF, DOCX und Labor-Anhänge.
+                    <div class="progress-indicator">
+                        <div class="progress-text">
+                            ⏳ Dokumente erfolgreich empfangen
+                        </div>
+                        <div class="processing-steps">
+                            Beginne mit der medizinischen Extraktion...
+                            <br>
+                            ✅ Extraktion abgeschlossen.
+                            <span class="highlight">4 Diagnosen, 3 Medikationen, 5 Laborwerte</span>
+                            in 2-3 Sekunden
+                        </div>
+                    </div>
+                </div>
+                <div class="message-time">09:15</div>
+            </div>
+
+            <!-- Medical Extraction Summary -->
+            <div class="medical-extraction" id="medicalExtraction" style="display:none;">
+                <div class="extraction-header">
+                    <span class="extraction-icon">📋</span>
+                    <span class="extraction-title">Medizinische Extraktion - Zusammenfassung</span>
+                </div>
+                <div class="extraction-tags">
+                    <span class="tag tag-diagnose">Diagnose (4)</span>
+                    <span class="tag tag-medikation">Medikation (3)</span>
+                    <span class="tag tag-labor">Labor (5)</span>
+                </div>
+                <div class="extraction-grid" id="extractionGrid">
+                    <!-- Medical data will be populated here -->
+                </div>
+            </div>
+
+            <!-- KI Insight -->
+            <div class="message insight-message" id="insightMessage" style="display:none;">
+                <div class="insight-header">💡 KI-Insight</div>
+                <div class="message-content">
+                    Refluxösophagitis Grad D erfordert Kontrolle. Risikoeinstufung: Erhöht ⟶ Gastroskopie-Termin empfohlen
+                </div>
+            </div>
+
+            <!-- Follow-up messages -->
+            <div class="message user-message" id="followUpMessage" style="display:none;">
+                <div class="message-content">
+                    Bitte Beruf auf „Außendienst (viel unterwegs)" setzen und Anamnese ergänzen: Häufiges Sodbrennen, Erbrechen in der Akutphase.
+                </div>
+                <div class="message-time">09:17</div>
+            </div>
+
+            <div class="message assistant-message" id="correctionMessage" style="display:none;">
+                <div class="message-content">
+                    Korrigiere bitte: Refluxösophagitis Grad D als relevant markieren: Verlaufskontrolle ambulant vormerken.
+                </div>
+                <div class="message-time">09:18</div>
+            </div>
+
+            <div class="message assistant-message" id="confirmationMessage" style="display:none;">
+                <div class="message-content">
+                    Geändert: Refluxösophagitis Grad D hervorgehoben. Kontroll-Gastroskopie als Termin-Hinweis notiert.
+                </div>
+                <div class="message-time">09:19</div>
+            </div>
+
+            <div class="message user-message" id="exportQuestion" style="display:none;">
+                <div class="message-content">
+                    Möchten Sie jetzt die Fall-Zusammenfassung exportieren?
+                </div>
+                <div class="message-time">09:21</div>
+            </div>
+
+        </div>
+
+        <!-- Export Options -->
+        <div class="export-options" id="exportOptions" style="display:none;">
+            <button class="btn-export" id="exportBtn">
+                📄 Vorgang erstellen
+            </button>
+            <div class="export-subtitle">oder Export als PDF ↓</div>
+            <div class="export-info">
+                📍 Gesamt-Bearbeitungszeit: 4 Minuten (Manuell: ~45 Minuten)
+            </div>
+        </div>
+
+        <!-- Message Input -->
+        <div class="message-input-container">
+            <div class="file-upload-area" id="fileUploadArea">
+                <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;">
+                <button class="btn-attach" id="attachBtn" title="Dokumente anhängen">📎</button>
+            </div>
+            <input
+                type="text"
+                id="messageInput"
+                class="message-input"
+                placeholder="Nachricht eingeben..."
+            >
+            <button class="btn-send" id="sendBtn">Senden</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
