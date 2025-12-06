@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CaseWithDetails } from '@/lib/types';
-import { getCaseWithDetails } from '@/lib/queries';
+import { CaseWithDetails, Diagnosis } from '@/lib/types';
+import { getCaseWithDetails, getHistoricalDiagnosesForCase } from '@/lib/queries';
 import { LoadingState, EmptyState } from '@/components/ui';
-import {
-  PatientHeader,
-  EncounterTimeline,
-  DiagnosisSummary,
-  MedicationSummary,
-} from '@/components/dossier';
+import { ThreeColumnLayout, Header } from '@/components/layout';
+import { PersonalDataCard, OccupationCard } from '@/components/left-column';
+import { MedicalHistory } from '@/components/middle-column';
+import { HistoricalDiagnoses, ChronicConditions, DocumentsList, AllDiagnosesTimeline } from '@/components/right-column';
+import { AssistantWidget } from '@/components/assistant';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,6 +18,7 @@ export default function CaseDetailPage() {
   const caseId = params.id as string;
 
   const [caseData, setCaseData] = useState<CaseWithDetails | null>(null);
+  const [historicalDiagnoses, setHistoricalDiagnoses] = useState<Diagnosis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +27,16 @@ export default function CaseDetailPage() {
       if (!caseId) return;
 
       try {
-        const data = await getCaseWithDetails(caseId);
+        const [data, historical] = await Promise.all([
+          getCaseWithDetails(caseId),
+          getHistoricalDiagnosesForCase(caseId),
+        ]);
+
         if (!data) {
           setError('Fall nicht gefunden');
         } else {
           setCaseData(data);
+          setHistoricalDiagnoses(historical);
         }
       } catch (err) {
         setError('Fehler beim Laden des Falls');
@@ -67,27 +72,35 @@ export default function CaseDetailPage() {
   }
 
   return (
-    <div>
-      {/* Back Navigation */}
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Zurück zur Übersicht
-      </Link>
+    <div className="-mt-8">
+      {/* Case Header */}
+      <Header caseData={caseData} />
 
-      {/* Patient Header */}
-      <PatientHeader caseData={caseData} />
+      {/* Three Column Layout */}
+      <ThreeColumnLayout
+        leftColumn={
+          <>
+            <PersonalDataCard caseData={caseData} />
+            <OccupationCard caseData={caseData} />
+          </>
+        }
+        middleColumn={
+          <MedicalHistory encounters={caseData.encounters} />
+        }
+        rightColumn={
+          <>
+            {historicalDiagnoses.length > 0 && (
+              <HistoricalDiagnoses diagnoses={historicalDiagnoses} />
+            )}
+            <ChronicConditions diagnoses={caseData.all_diagnoses} />
+            <DocumentsList encounters={caseData.encounters} />
+            <AllDiagnosesTimeline diagnoses={caseData.all_diagnoses} />
+          </>
+        }
+      />
 
-      {/* Two-Column Layout for Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <DiagnosisSummary diagnoses={caseData.all_diagnoses} />
-        <MedicationSummary medications={caseData.all_medications} />
-      </div>
-
-      {/* Encounter Timeline */}
-      <EncounterTimeline encounters={caseData.encounters} />
+      {/* Floating Assistant Widget */}
+      <AssistantWidget />
     </div>
   );
 }
