@@ -1,103 +1,95 @@
-'use client';
+import { notFound } from 'next/navigation';
+import { Header } from '@/components/layout/Header';
+import { ThreeColumnLayout } from '@/components/layout/ThreeColumnLayout';
+import { PersonalDataCard } from '@/components/left-column/PersonalDataCard';
+import { OccupationCard } from '@/components/left-column/OccupationCard';
+import { MedicalHistory } from '@/components/middle-column/MedicalHistory';
+import { HistoricalDiagnoses } from '@/components/right-column/HistoricalDiagnoses';
+import { ChronicConditions } from '@/components/right-column/ChronicConditions';
+import { DocumentsList } from '@/components/right-column/DocumentsList';
+import { AllDiagnosesTimeline } from '@/components/right-column/AllDiagnosesTimeline';
+import { AssistantWidget } from '@/components/assistant/AssistantWidget';
+import {
+  getCaseWithDetails,
+  getHistoricalDiagnosesForCase,
+  getChronicConditionsForCase,
+  getCurrentMedicationsForCase,
+} from '@/lib/queries';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { CaseWithDetails, Diagnosis } from '@/lib/types';
-import { getCaseWithDetails, getHistoricalDiagnosesForCase } from '@/lib/queries';
-import { LoadingState, EmptyState } from '@/components/ui';
-import { ThreeColumnLayout, Header } from '@/components/layout';
-import { PersonalDataCard, OccupationCard } from '@/components/left-column';
-import { MedicalHistory } from '@/components/middle-column';
-import { HistoricalDiagnoses, ChronicConditions, DocumentsList, AllDiagnosesTimeline } from '@/components/right-column';
-import { AssistantWidget } from '@/components/assistant';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+export const dynamic = 'force-dynamic';
 
-export default function CaseDetailPage() {
-  const params = useParams();
-  const caseId = params.id as string;
+interface CasePageProps {
+  params: Promise<{ id: string }>;
+}
 
-  const [caseData, setCaseData] = useState<CaseWithDetails | null>(null);
-  const [historicalDiagnoses, setHistoricalDiagnoses] = useState<Diagnosis[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function CasePage({ params }: CasePageProps) {
+  const { id } = await params;
 
-  useEffect(() => {
-    async function loadCase() {
-      if (!caseId) return;
+  // Fetch all data in parallel
+  const [caseData, historicalDiagnoses, chronicConditions, currentMedications] = await Promise.all([
+    getCaseWithDetails(id),
+    getHistoricalDiagnosesForCase(id),
+    getChronicConditionsForCase(id),
+    getCurrentMedicationsForCase(id),
+  ]);
 
-      try {
-        const [data, historical] = await Promise.all([
-          getCaseWithDetails(caseId),
-          getHistoricalDiagnosesForCase(caseId),
-        ]);
-
-        if (!data) {
-          setError('Fall nicht gefunden');
-        } else {
-          setCaseData(data);
-          setHistoricalDiagnoses(historical);
-        }
-      } catch (err) {
-        setError('Fehler beim Laden des Falls');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadCase();
-  }, [caseId]);
-
-  if (loading) {
-    return <LoadingState message="Dossier wird geladen..." />;
+  if (!caseData) {
+    notFound();
   }
 
-  if (error || !caseData) {
-    return (
-      <div className="text-center py-12">
-        <EmptyState
-          title={error || 'Fall nicht gefunden'}
-          description="Der angeforderte Fall konnte nicht geladen werden."
-        />
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 mt-4 text-blue-600 hover:text-blue-700"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Zurück zur Übersicht
-        </Link>
-      </div>
-    );
-  }
+  // Extract documents from encounters
+  const documents = caseData.encounters
+    .filter(e => e.source_document)
+    .map(e => ({
+      id: e.id,
+      name: e.source_document!,
+      type: 'PDF',
+    }));
+
+  // Add some placeholder documents
+  const allDocuments = [
+    ...documents,
+    { id: 'doc-1', name: 'Befundbericht.pdf', type: 'PDF' },
+    { id: 'doc-2', name: 'Nachsorgebericht Hausarzt', type: 'PDF' },
+    { id: 'doc-3', name: 'Zusatzfragebogen Diabetes', type: 'PDF' },
+  ].filter((doc, index, self) =>
+    index === self.findIndex(d => d.name === doc.name)
+  );
 
   return (
     <div className="-mt-8">
-      {/* Case Header */}
-      <Header caseData={caseData} />
-
-      {/* Three Column Layout */}
-      <ThreeColumnLayout
-        leftColumn={
-          <>
-            <PersonalDataCard caseData={caseData} />
-            <OccupationCard caseData={caseData} />
-          </>
-        }
-        middleColumn={
-          <MedicalHistory encounters={caseData.encounters} />
-        }
-        rightColumn={
-          <>
-            {historicalDiagnoses.length > 0 && (
-              <HistoricalDiagnoses diagnoses={historicalDiagnoses} />
-            )}
-            <ChronicConditions diagnoses={caseData.all_diagnoses} />
-            <DocumentsList encounters={caseData.encounters} />
-            <AllDiagnosesTimeline diagnoses={caseData.all_diagnoses} />
-          </>
-        }
+      {/* Header */}
+      <Header
+        name={caseData.name || undefined}
+        caseNumber={caseData.id.slice(0, 8).toUpperCase()}
+        submittedDate={caseData.created_at}
       />
+
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <ThreeColumnLayout
+          leftColumn={
+            <>
+              <PersonalDataCard caseData={caseData} />
+              <OccupationCard caseData={caseData} />
+            </>
+          }
+          middleColumn={
+            <MedicalHistory encounters={caseData.encounters} />
+          }
+          rightColumn={
+            <>
+              <HistoricalDiagnoses diagnoses={historicalDiagnoses} />
+              <ChronicConditions
+                diagnoses={chronicConditions}
+                currentMedications={currentMedications}
+              />
+              <DocumentsList documents={allDocuments} />
+              <AllDiagnosesTimeline diagnoses={caseData.all_diagnoses} />
+            </>
+          }
+        />
+      </div>
 
       {/* Floating Assistant Widget */}
       <AssistantWidget />
