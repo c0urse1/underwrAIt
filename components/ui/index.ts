@@ -5,3 +5,6 @@ export { Section } from './Section';
 export { EmptyState } from './EmptyState';
 export { LoadingSpinner, LoadingState } from './LoadingSpinner';
 export { Collapsible } from './Collapsible';
+export { ErrorBoundary } from './ErrorBoundary';
+export { ErrorState, InlineError } from './ErrorState';
+export type { ErrorSeverity } from './ErrorState';
