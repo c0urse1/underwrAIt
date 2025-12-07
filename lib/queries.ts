@@ -73,18 +73,35 @@ export async function getCase(caseId: string): Promise<UnderwritingCase | null> 
 
 // Get all cases
 export async function getAllCases(): Promise<UnderwritingCase[]> {
+  // Debug: Check if Supabase is configured
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    console.error('[getAllCases] Missing Supabase config:', {
+      hasUrl: !!url,
+      hasKey: !!key,
+    });
+    throw new DatabaseError('Supabase Konfiguration fehlt');
+  }
+
   try {
+    console.log('[getAllCases] Fetching cases from Supabase...');
+
     const { data, error } = await supabase
       .from('underwriting_cases')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('[getAllCases] Supabase error:', error);
       handleSupabaseError(error, 'Alle Fälle abrufen');
     }
 
+    console.log('[getAllCases] Fetched cases:', data?.length ?? 0);
     return data || [];
   } catch (error) {
+    console.error('[getAllCases] Caught error:', error);
     logError(error, { operation: 'getAllCases' });
     throw new DatabaseError('Fehler beim Abrufen der Fälle');
   }

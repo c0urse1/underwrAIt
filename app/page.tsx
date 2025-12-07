@@ -6,7 +6,16 @@ import { formatDate } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const cases = await getAllCases();
+  let cases: Awaited<ReturnType<typeof getAllCases>> = [];
+  let errorMessage: string | null = null;
+
+  try {
+    cases = await getAllCases();
+    console.log('[HomePage] Loaded cases:', cases.length);
+  } catch (error) {
+    console.error('[HomePage] Error loading cases:', error);
+    errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -53,7 +62,17 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {cases.length === 0 ? (
+      {errorMessage ? (
+        <div className="bg-red-50 rounded-xl border border-red-200 p-12 text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-lg font-medium text-red-900 mb-2">
+            Fehler beim Laden der Fälle
+          </h2>
+          <p className="text-red-600 font-mono text-sm">
+            {errorMessage}
+          </p>
+        </div>
+      ) : cases.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-medium text-gray-900 mb-2">
