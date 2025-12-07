@@ -7,7 +7,7 @@ import { DiagnosesList } from './DiagnosesList';
 import { LabValuesList } from './LabValuesList';
 import { FindingsList } from './FindingsList';
 import { MedicationsList } from './MedicationsList';
-import { Building, User, FileText } from 'lucide-react';
+import { Building, User, FileText, Paperclip } from 'lucide-react';
 
 interface EncounterCardProps {
   encounter: EncounterWithDetails;
@@ -154,6 +154,17 @@ export function EncounterCard({ encounter, defaultExpanded = false }: EncounterC
             <p className="text-sm text-gray-600 bg-blue-50 rounded-lg p-3">
               {encounter.discharge_summary}
             </p>
+          </div>
+        )}
+
+        {/* Quelldokument */}
+        {encounter.source_document && (
+          <div className="pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 cursor-pointer group">
+              <Paperclip className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+              <span className="group-hover:underline">{encounter.source_document}</span>
+              <span className="text-xs text-gray-400 ml-auto">PDF</span>
+            </div>
           </div>
         )}
       </div>
