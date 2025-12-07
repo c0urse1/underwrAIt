@@ -1,93 +1,98 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { CaseWithDetails } from '@/lib/types';
-import { getCaseWithDetails } from '@/lib/queries';
-import { LoadingState, EmptyState } from '@/components/ui';
+import { notFound } from 'next/navigation';
+import { Header } from '@/components/layout/Header';
+import { ThreeColumnLayout } from '@/components/layout/ThreeColumnLayout';
+import { PersonalDataCard } from '@/components/left-column/PersonalDataCard';
+import { OccupationCard } from '@/components/left-column/OccupationCard';
+import { MedicalHistory } from '@/components/middle-column/MedicalHistory';
+import { HistoricalDiagnoses } from '@/components/right-column/HistoricalDiagnoses';
+import { ChronicConditions } from '@/components/right-column/ChronicConditions';
+import { DocumentsList } from '@/components/right-column/DocumentsList';
+import { AllDiagnosesTimeline } from '@/components/right-column/AllDiagnosesTimeline';
+import { AssistantWidget } from '@/components/assistant/AssistantWidget';
 import {
-  PatientHeader,
-  EncounterTimeline,
-  DiagnosisSummary,
-  MedicationSummary,
-} from '@/components/dossier';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+  getCaseWithDetails,
+  getHistoricalDiagnosesForCase,
+  getChronicConditionsForCase,
+  getCurrentMedicationsForCase,
+} from '@/lib/queries';
 
-export default function CaseDetailPage() {
-  const params = useParams();
-  const caseId = params.id as string;
+export const dynamic = 'force-dynamic';
 
-  const [caseData, setCaseData] = useState<CaseWithDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface CasePageProps {
+  params: Promise<{ id: string }>;
+}
 
-  useEffect(() => {
-    async function loadCase() {
-      if (!caseId) return;
+export default async function CasePage({ params }: CasePageProps) {
+  const { id } = await params;
 
-      try {
-        const data = await getCaseWithDetails(caseId);
-        if (!data) {
-          setError('Fall nicht gefunden');
-        } else {
-          setCaseData(data);
-        }
-      } catch (err) {
-        setError('Fehler beim Laden des Falls');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
+  // Fetch all data in parallel
+  const [caseData, historicalDiagnoses, chronicConditions, currentMedications] = await Promise.all([
+    getCaseWithDetails(id),
+    getHistoricalDiagnosesForCase(id),
+    getChronicConditionsForCase(id),
+    getCurrentMedicationsForCase(id),
+  ]);
 
-    loadCase();
-  }, [caseId]);
-
-  if (loading) {
-    return <LoadingState message="Dossier wird geladen..." />;
+  if (!caseData) {
+    notFound();
   }
 
-  if (error || !caseData) {
-    return (
-      <div className="text-center py-12">
-        <EmptyState
-          title={error || 'Fall nicht gefunden'}
-          description="Der angeforderte Fall konnte nicht geladen werden."
-        />
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 mt-4 text-blue-600 hover:text-blue-700"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Zurück zur Übersicht
-        </Link>
-      </div>
-    );
-  }
+  // Extract documents from encounters
+  const documents = caseData.encounters
+    .filter(e => e.source_document)
+    .map(e => ({
+      id: e.id,
+      name: e.source_document!,
+      type: 'PDF',
+    }));
+
+  // Add some placeholder documents
+  const allDocuments = [
+    ...documents,
+    { id: 'doc-1', name: 'Befundbericht.pdf', type: 'PDF' },
+    { id: 'doc-2', name: 'Nachsorgebericht Hausarzt', type: 'PDF' },
+    { id: 'doc-3', name: 'Zusatzfragebogen Diabetes', type: 'PDF' },
+  ].filter((doc, index, self) =>
+    index === self.findIndex(d => d.name === doc.name)
+  );
 
   return (
-    <div>
-      {/* Back Navigation */}
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Zurück zur Übersicht
-      </Link>
+    <div className="-mt-8">
+      {/* Header */}
+      <Header
+        name={caseData.name || undefined}
+        caseNumber={caseData.id.slice(0, 8).toUpperCase()}
+        submittedDate={caseData.created_at}
+      />
 
-      {/* Patient Header */}
-      <PatientHeader caseData={caseData} />
-
-      {/* Two-Column Layout for Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <DiagnosisSummary diagnoses={caseData.all_diagnoses} />
-        <MedicationSummary medications={caseData.all_medications} />
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <ThreeColumnLayout
+          leftColumn={
+            <>
+              <PersonalDataCard caseData={caseData} />
+              <OccupationCard caseData={caseData} />
+            </>
+          }
+          middleColumn={
+            <MedicalHistory encounters={caseData.encounters} />
+          }
+          rightColumn={
+            <>
+              <HistoricalDiagnoses diagnoses={historicalDiagnoses} />
+              <ChronicConditions
+                diagnoses={chronicConditions}
+                currentMedications={currentMedications}
+              />
+              <DocumentsList documents={allDocuments} />
+              <AllDiagnosesTimeline diagnoses={caseData.all_diagnoses} />
+            </>
+          }
+        />
       </div>
 
-      {/* Encounter Timeline */}
-      <EncounterTimeline encounters={caseData.encounters} />
+      {/* Floating Assistant Widget */}
+      <AssistantWidget />
     </div>
   );
 }

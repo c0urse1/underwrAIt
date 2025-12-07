@@ -1,44 +1,23 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { UnderwritingCase } from '@/lib/types';
-import { getAllCases } from '@/lib/queries';
-import { formatDate, calculateAge } from '@/lib/utils';
-import { Card, CardContent, Badge, LoadingState, EmptyState } from '@/components/ui';
-import { User, Calendar, Briefcase, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { FileText, ArrowRight, Clock, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { getAllCases } from '@/lib/queries';
+import { formatDate } from '@/lib/utils';
 
-export default function HomePage() {
-  const [cases, setCases] = useState<UnderwritingCase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    async function loadCases() {
-      try {
-        const data = await getAllCases();
-        setCases(data);
-      } catch (err) {
-        setError('Fehler beim Laden der Fälle');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
+export default async function HomePage() {
+  const cases = await getAllCases();
 
-    loadCases();
-  }, []);
-
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'complete':
-        return 'success';
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'review':
-        return 'warning';
+        return <Clock className="w-5 h-5 text-yellow-500" />;
       case 'rejected':
-        return 'danger';
+        return <XCircle className="w-5 h-5 text-red-500" />;
       default:
-        return 'info';
+        return <AlertCircle className="w-5 h-5 text-blue-500" />;
     }
   };
 
@@ -52,21 +31,22 @@ export default function HomePage() {
     return labels[status] || status;
   };
 
-  if (loading) {
-    return <LoadingState message="Fälle werden geladen..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'complete':
+        return 'bg-green-100 text-green-800';
+      case 'review':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-blue-100 text-blue-800';
+    }
+  };
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Underwriting-Fälle</h1>
         <p className="text-gray-600 mt-1">
           {cases.length} {cases.length === 1 ? 'Fall' : 'Fälle'} verfügbar
@@ -74,55 +54,88 @@ export default function HomePage() {
       </div>
 
       {cases.length === 0 ? (
-        <EmptyState
-          title="Keine Fälle vorhanden"
-          description="Es wurden noch keine Underwriting-Fälle erstellt."
-        />
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-lg font-medium text-gray-900 mb-2">
+            Keine Fälle vorhanden
+          </h2>
+          <p className="text-gray-500">
+            Es wurden noch keine Underwriting-Fälle erstellt.
+          </p>
+        </div>
       ) : (
-        <div className="grid gap-4">
-          {cases.map((caseData) => {
-            const age = calculateAge(caseData.birth_date);
-
-            return (
-              <Link key={caseData.id} href={`/case/${caseData.id}`}>
-                <Card hover className="p-0">
-                  <CardContent className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-gray-400" />
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fall
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Eingereicht
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Aktion
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {cases.map((caseData) => (
+                <tr key={caseData.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-mono text-gray-500">
+                      #{caseData.id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-gray-600">
+                          {(caseData.name || 'U')[0].toUpperCase()}
+                        </span>
                       </div>
                       <div>
-                        <div className="flex items-center gap-3">
-                          <h2 className="text-lg font-semibold text-gray-900">
-                            {caseData.name || 'Unbekannt'}
-                          </h2>
-                          <Badge variant={getStatusBadgeVariant(caseData.status)}>
-                            {getStatusLabel(caseData.status)}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                          {caseData.birth_date && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {formatDate(caseData.birth_date)}
-                              {age !== null && ` (${age} J.)`}
-                            </span>
-                          )}
-                          {caseData.occupation?.title && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="w-4 h-4" />
-                              {caseData.occupation.title}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {caseData.name || 'Unbekannt'}
+                        </p>
+                        {caseData.birth_date && (
+                          <p className="text-xs text-gray-500">
+                            Geb. {formatDate(caseData.birth_date)}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(caseData.status)}
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusClass(caseData.status)}`}>
+                        {getStatusLabel(caseData.status)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(caseData.created_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <Link
+                      href={`/case/${caseData.id}`}
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Dossier öffnen
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
